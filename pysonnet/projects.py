@@ -8,6 +8,7 @@ import pathlib
 import subprocess
 import numpy as np
 from datetime import datetime
+import gdsfactory as gf
 
 import pysonnet.blocks as b
 from pysonnet.sonnet import test_sonnet
@@ -94,7 +95,7 @@ class Project(dict):
 
     def set_options(self, current_density=False, frequency_cache=False,
                     memory_save=False, box_resonance=False, deembed=True,
-                    q_accuracy=False, resonance_detection=False, memory=None, custom=""):
+                    q_accuracy=False, resonance_detection=False, memory='low', custom=""):
         """
         Set the Sonnet options. Old options are overridden.
 
@@ -1146,6 +1147,45 @@ class GeometryProject(Project):
                     points.append(polygons[i].points)
 
         self.add_polygons(polygon_type, points, **kwargs)
+    
+    def add_gf_comp(self,
+                    polygon_type: str,
+                    component: gf.Component,
+                    layer: int | None = None,
+                    datatype: int | None = None,
+                    **kwargs):
+        """
+        Adds a gdsfactory component to the project.
+
+        :param polygon_type: type of polygon to add (string)
+            Valid options are listed below with the additional keyword arguments that may
+            be needed for each.
+            'metal': a metal polygon
+            'via': a via polygon
+                :keyword to_level: the level to which the polygon extends (integer)
+                :keyword via_fill_type: meshing used for the via polygon (string)
+                    Valid options are 'ring' (default), 'center', 'vertices', 'solid',
+                    and 'bar'.
+                :keyword pads: metal pads over the via, default is False (boolean)
+            'dielectric brick': a dielectric brick polygon
+        :param component: a gdsfactory Component (object)
+        :param layer: the layer number to use (integer)
+            The default is None and all layers are used.
+        :param datatype: the datatype to use (integer)
+            The default is None and all datatypes are used.
+
+        Keywords to add_polygons are also included.
+        """
+        # gdsfactory exposes underlying GDSTK polygons
+        points = []
+        for polygon in component.get_polygons(as_array=False):
+            p_layer = polygon.layer if layer is not None else None
+            p_datatype = polygon.datatype if datatype is not None else None
+            if p_layer == layer and p_datatype == datatype:
+                points.append(polygon.points)
+
+        self.add_polygons(polygon_type, points, **kwargs)
+
 
     def add_polygons(self, polygon_type, polygons, tech_layer=None, **kwargs):
         """
